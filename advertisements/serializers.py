@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+
 from advertisements.models import Advertisement
 
 
@@ -16,14 +16,13 @@ class UserSerializer(serializers.ModelSerializer):
 class AdvertisementSerializer(serializers.ModelSerializer):
     """Serializer для объявления."""
 
-    creator = UserSerializer(
-        read_only=True,
-    )
+    creator = UserSerializer(read_only=True, )
 
     class Meta:
         model = Advertisement
-        fields = ('id', 'title', 'description', 'creator',
-                  'status', 'created_at', )
+        fields = ['id', 'title', 'description', 'creator',
+                  'status', 'created_at', ]
+        read_only_fields = ('creator',)
 
     def create(self, validated_data):
         """Метод для создания"""
@@ -39,12 +38,15 @@ class AdvertisementSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Метод для валидации. Вызывается при создании и обновлении."""
-        request = self.context['request'].method
-        user = self.context['request'].user
-        if request == 'POST' and Advertisement.objects.filter(creator=user, status='OPEN').count() >= 10:
-            raise ValidationError('You cannot create more than 10 open ads')
 
-        if request in ('PATCH', 'PUT') and data.get('status') == 'OPEN' \
-                and Advertisement.objects.filter(creator=user, status='OPEN').count() >= 10:
-            raise ValidationError('You cannot create more than 10 open ads')
+        # TODO: добавьте требуемую валидацию
+
+        user = self.context['request'].user
+
+        # Проверка на количество открытых объявлений у пользователя
+        if data.get('status') == 'OPEN':
+            open_advertisements_count = Advertisement.objects.filter(creator=user, status='OPEN').count()
+            if open_advertisements_count >= 10:
+                raise serializers.ValidationError("Вы уже создали максимальное количество открытых объявлений.")
+
         return data
